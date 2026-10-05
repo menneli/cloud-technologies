@@ -48,5 +48,5 @@ python -m uvicorn main:app --reload
 
 
 
-![g](Mega-Gull.PNG)
+![g](Mega-Gull.jpg)
 3/4 членов команды и художественный руководитель концессии Игорь Чайка. 
