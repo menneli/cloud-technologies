@@ -13,7 +13,7 @@
 Структура нашего проекта: 
 
 - lab0 📁
-    - static 📁
+    - static 🗂️
       - index.html 👨🏿‍💻
     - docker_compose.yml 🐳
     - main.py 🐍 
@@ -27,8 +27,9 @@
 pip install -r requirements.txt
 2) Запустить программу 
 python -m uvicorn main:app --reload
+3) Дождаться уведомления Application startup complete 😎.
+После запуска сайт будет доступен на http://127.0.0.1:8000
 
-Дождаться уведомления Application startup complete 😎.
 
 Демонстрация работы приложения: 
 
@@ -44,3 +45,8 @@ python -m uvicorn main:app --reload
 
 
 Также можно фильтровать по стоимости (она считается включительно).
+
+
+
+![](Mega-Gull.PNG)
+3/4 членов команды и художественный руководитель концессии Игорь Чайка. 
