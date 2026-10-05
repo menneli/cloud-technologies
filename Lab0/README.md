@@ -27,4 +27,13 @@
 pip install -r requirements.txt
 2) Запустить программу 
 python -m uvicorn main:app --reload
+
 Дождаться уведомления Application startup complete 😎.
+
+Демонстрация работы приложения: 
+
+![Добавление нового ресторана с бизнес-ланчем](new_rest.jpeg)
+
+![Поиск ресторана по станции метро](filter_rest.jpeg)
+
+Также можно фильтровать по стоимости (она считается включительно).
