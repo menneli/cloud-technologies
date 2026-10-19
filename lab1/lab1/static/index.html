@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Бизнес-ланчи в Санкт-Петербурге</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e9eef2;--ink:#12263a;--muted:#5d6f80;--card:#fff;--edge:#cfd9e1;
+--l1:#d6083b;--l2:#0078be;--l3:#009a49;--l4:#ea7125;--l5:#702785}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Golos Text",system-ui,sans-serif}
+header{padding:40px 24px 8px;max-width:1040px;margin:auto}
+h1{font-size:clamp(28px,5vw,48px);line-height:1.05;margin:0 0 8px;font-weight:800;letter-spacing:-.02em}
+header p{margin:0;color:var(--muted);max-width:52ch}
+main{max-width:1040px;margin:auto;padding:24px;display:grid;grid-template-columns:300px 1fr;gap:28px;align-items:start}
+@media(max-width:800px){main{grid-template-columns:1fr}}
+aside{background:var(--card);border:1px solid var(--edge);border-radius:12px;padding:20px;position:sticky;top:16px}
+@media(max-width:800px){aside{position:static}}
+h2{font-size:17px;margin:0 0 12px}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
+input,select,textarea{width:100%;font:inherit;padding:9px 10px;border:1px solid var(--edge);border-radius:8px;background:#fff;color:var(--ink)}
+textarea{resize:vertical;min-height:70px}
+:focus-visible{outline:3px solid var(--l2);outline-offset:1px}
+button{font:inherit;font-weight:600;cursor:pointer;border:0;border-radius:8px}
+.primary{margin-top:16px;width:100%;padding:11px;background:var(--ink);color:#fff}
+.primary:hover{background:#1f3b57}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.filters>*{flex:1;min-width:150px}
+.card{background:var(--card);border:1px solid var(--edge);border-left:8px solid var(--c);border-radius:12px;padding:16px 18px;margin-bottom:14px;display:grid;grid-template-columns:1fr auto;gap:4px 16px}
+.card h3{margin:0;font-size:19px}
+.metro{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);grid-column:1}
+.dot{width:20px;height:20px;border-radius:50%;background:var(--c);color:#fff;font-weight:800;font-size:12px;display:grid;place-items:center}
+.card p{margin:6px 0 0;grid-column:1}
+.price{grid-column:2;grid-row:1/3;text-align:right;font-size:28px;font-weight:800;line-height:1}
+.price small{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-top:4px}
+.del{grid-column:2;align-self:end;justify-self:end;background:none;color:var(--muted);font-size:13px;padding:4px 6px}
+.del:hover{color:var(--l1)}
+.msg{color:var(--muted);padding:24px 0}
+.err{color:var(--l1);font-size:14px;margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Бизнес-ланчи в Санкт-Петербурге</h1>
+  <p>Найдите комплексный обед рядом со своей станцией метро или добавьте тот, где уже были.</p>
+</header>
+<main>
+  <aside>
+    <h2>Добавить обед</h2>
+    <form id="form">
+      <label for="place">Заведение</label><input id="place" required minlength="2" maxlength="80">
+      <label for="station">Станция метро</label><select id="station" required></select>
+      <label for="description">Что входит в сет</label><textarea id="description" required minlength="5" maxlength="300"></textarea>
+      <label for="price">Цена, ₽</label><input id="price" type="number" min="100" max="5000" required>
+      <label for="hours">Время подачи</label><input id="hours" value="12:00–16:00" maxlength="30">
+      <button class="primary" type="submit">Сохранить обед</button>
+      <div id="err" class="err" role="alert"></div>
+    </form>
+  </aside>
+  <section>
+    <div class="filters">
+      <select id="f-station" aria-label="Фильтр по станции"><option value="">Все станции</option></select>
+      <input id="f-price" type="number" min="0" placeholder="Макс. цена, ₽" aria-label="Максимальная цена">
+    </div>
+    <div id="list" aria-live="polite"></div>
+  </section>
+</main>
+<script>
+const COLORS = {1:'var(--l1)',2:'var(--l2)',3:'var(--l3)',4:'var(--l4)',5:'var(--l5)'};
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    const d = body.detail;
+    throw new Error(Array.isArray(d) ? 'Проверьте заполнение полей формы' : d || 'Ошибка запроса');
+  }
+  return r.status === 204 ? null : r.json();
+}
+
+async function loadStations() {
+  const stations = await api('/api/stations');
+  const lines = [...new Set(stations.map(s => s.line))];
+  for (const sel of [$('station'), $('f-station')]) {
+    for (const l of lines) {
+      const g = document.createElement('optgroup');
+      const first = stations.find(s => s.line === l);
+      g.label = `${first.line_name} ветка`;
+      stations.filter(s => s.line === l).forEach(s => g.append(new Option(s.name, s.name)));
+      sel.append(g);
+    }
+  }
+}
+
+async function loadLunches() {
+  const q = new URLSearchParams();
+  if ($('f-station').value) q.set('station', $('f-station').value);
+  if ($('f-price').value) q.set('max_price', $('f-price').value);
+  const items = await api('/api/lunches?' + q);
+  const list = $('list');
+  list.replaceChildren();
+  if (!items.length) { list.append(el('div', 'msg', 'Ничего не найдено. Измените фильтры или добавьте обед.')); return; }
+  for (const it of items) {
+    const card = el('article', 'card');
+    card.style.setProperty('--c', COLORS[it.line]);
+    card.append(el('h3', null, it.place));
+    const metro = el('div', 'metro');
+    metro.append(el('span', 'dot', 'M'), el('span', null, `${it.station} · ${it.hours}`));
+    card.append(metro, el('p', null, it.description));
+    const price = el('div', 'price', `${it.price_rub} ₽`);
+    price.append(el('small', null, 'за сет'));
+    const del = el('button', 'del', 'Удалить');
+    del.onclick = async () => { await api('/api/lunches/' + it.id, { method: 'DELETE' }); loadLunches(); };
+    card.append(price, del);
+    list.append(card);
+  }
+}
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('err').textContent = '';
+  try {
+    await api('/api/lunches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        place: $('place').value.trim(), station: $('station').value,
+        description: $('description').value.trim(),
+        price_rub: Number($('price').value), hours: $('hours').value.trim() || '12:00–16:00'
+      })
+    });
+    e.target.reset();
+    $('hours').value = '12:00–16:00';
+    loadLunches();
+  } catch (err) { $('err').textContent = err.message; }
+});
+$('f-station').onchange = $('f-price').oninput = loadLunches;
+
+loadStations().then(loadLunches);
+</script>
+</body>
+</html>
